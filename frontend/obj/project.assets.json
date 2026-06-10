@@ -15,7 +15,7 @@
           }
         }
       },
-      "Microsoft.AspNetCore.App.Internal.Assets/10.0.8": {
+      "Microsoft.AspNetCore.App.Internal.Assets/10.0.9": {
         "type": "package",
         "build": {
           "build/Microsoft.AspNetCore.App.Internal.Assets.props": {},
@@ -90,10 +90,10 @@
         "readme.md"
       ]
     },
-    "Microsoft.AspNetCore.App.Internal.Assets/10.0.8": {
-      "sha512": "v6KocthydFtUHBIRI29YsOHKOgsqcQubkNywVOxiYr4GSDSv+XO/AeyMJywlX+1tGUTGdydu/X7V+Tzeq4SsoA==",
+    "Microsoft.AspNetCore.App.Internal.Assets/10.0.9": {
+      "sha512": "E9Wp/LPKAYkGOVBv4lt5U5TnUA/7pov7QZAwF3eI64kK8AAXqkPDwuadEOwpL1WXEfgecYm0fccluvABp32D8g==",
       "type": "package",
-      "path": "microsoft.aspnetcore.app.internal.assets/10.0.8",
+      "path": "microsoft.aspnetcore.app.internal.assets/10.0.9",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -109,7 +109,7 @@
         "build/Microsoft.AspNetCore.App.Internal.Assets.targets",
         "buildMultiTargeting/Microsoft.AspNetCore.App.Internal.Assets.targets",
         "buildTransitive/Microsoft.AspNetCore.App.Internal.Assets.targets",
-        "microsoft.aspnetcore.app.internal.assets.10.0.8.nupkg.sha512",
+        "microsoft.aspnetcore.app.internal.assets.10.0.9.nupkg.sha512",
         "microsoft.aspnetcore.app.internal.assets.nuspec"
       ]
     },
@@ -438,7 +438,7 @@
   },
   "projectFileDependencyGroups": {
     "net10.0": [
-      "Microsoft.AspNetCore.App.Internal.Assets >= 10.0.8",
+      "Microsoft.AspNetCore.App.Internal.Assets >= 10.0.9",
       "MudBlazor >= 9.5.0",
       "MudBlazor.Markdown >= 9.0.0"
     ]
@@ -488,7 +488,7 @@
         "auditLevel": "low",
         "auditMode": "all"
       },
-      "SdkAnalysisLevel": "10.0.200"
+      "SdkAnalysisLevel": "10.0.300"
     },
     "frameworks": {
       "net10.0": {
@@ -497,7 +497,7 @@
           "Microsoft.AspNetCore.App.Internal.Assets": {
             "suppressParent": "All",
             "target": "Package",
-            "version": "[10.0.8, )",
+            "version": "[10.0.9, )",
             "autoReferenced": true
           },
           "MudBlazor": {
@@ -528,7 +528,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.204/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.301/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.AspNetCore": "(,10.0.32767]",
           "Microsoft.AspNetCore.Antiforgery": "(,10.0.32767]",

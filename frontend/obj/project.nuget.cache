@@ -1,11 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "Kemavnuf3Q8=",
+  "dgSpecHash": "VfRCeZ2bfWA=",
   "success": true,
   "projectFilePath": "D:\\RgAi\\frontend\\frontend.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Kenne\\.nuget\\packages\\markdig\\0.45.0\\markdig.0.45.0.nupkg.sha512",
-    "C:\\Users\\Kenne\\.nuget\\packages\\microsoft.aspnetcore.app.internal.assets\\10.0.8\\microsoft.aspnetcore.app.internal.assets.10.0.8.nupkg.sha512",
+    "C:\\Users\\Kenne\\.nuget\\packages\\microsoft.aspnetcore.app.internal.assets\\10.0.9\\microsoft.aspnetcore.app.internal.assets.10.0.9.nupkg.sha512",
     "C:\\Users\\Kenne\\.nuget\\packages\\mudblazor\\9.5.0\\mudblazor.9.5.0.nupkg.sha512",
     "C:\\Users\\Kenne\\.nuget\\packages\\mudblazor.markdown\\9.0.0\\mudblazor.markdown.9.0.0.nupkg.sha512"
   ],
