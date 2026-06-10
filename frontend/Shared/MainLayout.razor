@@ -1,6 +1,6 @@
 @inherits LayoutComponentBase
 
-<MudThemeProvider Theme="_theme" />
+<MudThemeProvider />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
@@ -9,7 +9,7 @@
     <MudAppBar Elevation="2" Color="Color.Primary" Dense="false" Class="py-3">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@DrawerToggle" />
         <MudSpacer />
-        <MudText Typo="Typo.h6" Class="font-weight-bold">RgAi Studio lmao</MudText>
+        <MudText Typo="Typo.h6" Class="font-weight-bold">RgAi Studio ayylmao</MudText>
         <MudSpacer />
         <MudChip T="string" Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Apartment">@TenantName</MudChip>
         <MudAvatar Color="Color.Secondary" Class="ms-3">
@@ -47,45 +47,4 @@
     {
         _drawerOpen = !_drawerOpen;
     }
-
-    private readonly MudTheme _theme = new()
-    {
-        PaletteDark = new PaletteDark()
-        {
-            Black = "#0C1220",
-            Background = "#0B1120",
-            Surface = "#111827",
-            DrawerBackground = "#0f172a",
-            AppbarBackground = "#111827",
-            AppbarText = "#e5e7eb",
-            TextPrimary = "#e5e7eb",
-            TextSecondary = "#e5e7eb",
-            Primary = "#7c3aed",
-            Secondary = "#22d3ee",
-            Info = "#60a5fa",
-            Success = "#22c55e",
-            Warning = "#f59e0b",
-            Error = "#ef4444",
-            Tertiary = "#a78bfa"
-        },
-        LayoutProperties = new LayoutProperties
-        {
-            DefaultBorderRadius = "12px"
-        },
-        Typography = new Typography
-        {
-            Default = new DefaultTypography()
-            {
-                FontFamily = new[] { "Inter", "Segoe UI", "sans-serif" },
-                FontSize = "0.875rem",
-                LineHeight = "1.6rem"
-            },
-            H6 = new H6Typography()
-            {
-                FontSize = "1.25rem",
-                FontWeight = "600rem",
-                LineHeight = "1.4rem"
-            }
-        }
-    };
 }
