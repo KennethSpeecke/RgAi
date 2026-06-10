@@ -5,13 +5,13 @@
 @inject IHttpClientFactory HttpClientFactory
 @inject IJSRuntime JSRuntime
 
-<PageTitle>RgAi Studio</PageTitle>
+<PageTitle>RgAi Prototype</PageTitle>
 
 <MudGrid Spacing="4" Class="h-100">
     <!-- Header Card -->
     <MudItem xs="12">
         <MudPaper Class="pa-6 mud-gradient-primary" Elevation="0">
-            <MudStack Direction="Row" AlignItems="AlignItems.Center" JustifyContent="Justify.SpaceBetween">
+            <MudStack AlignItems="AlignItems.Center">
                 <MudStack Spacing="1">
                     <MudText Typo="Typo.h4" Class="font-weight-bold">Welcome to RgAi Studio</MudText>
                     <MudText Typo="Typo.body1" Color="Color.Secondary">Your AI-powered workspace for conversations and insights</MudText>
@@ -26,7 +26,7 @@
     <!-- Main Content Area -->
     <MudItem xs="12" sm="12" md="9">
         <!-- Chat Display -->
-        <MudPaper Class="mud-glass-effect pa-6 h-100 d-flex flex-column" Elevation="1" Style="background: rgba(17, 24, 39, 0.5); backdrop-filter: blur(10px);">
+        <MudPaper Class="mud-glass-effect pa-6 h-100 d-flex flex-column" Elevation="1">
             <MudStack Spacing="2" Class="mb-4">
                 <MudText Typo="Typo.h6" Class="font-weight-bold">Conversation</MudText>
                 <MudDivider Class="my-2" />
@@ -35,7 +35,7 @@
             <div class="chat-viewport flex-grow-1 overflow-y-auto mb-4">
                 @if (Messages.Count == 0)
                 {
-                    <MudStack Spacing="3" AlignItems="AlignItems.Center" JustifyContent="Justify.Center" Class="h-100">
+                    <MudStack Spacing="3" AlignItems="AlignItems.Center" Class="h-100">
                         <MudIcon Icon="@Icons.Material.Filled.ChatBubbleOutline" Size="Size.Large" Color="Color.Secondary" />
                         <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
                             Start a conversation by sending a message. Your chat history will appear here.
@@ -59,13 +59,13 @@
             </div>
 
             <!-- Input Area -->
-            <MudDivider Class="my-3" />
+            <MudDivider DividerType="DividerType.Middle" Class="my-2"/>
             <MudStack Spacing="2">
                 <MudSelect T="string" Value="SelectedMode" ValueChanged="@((string value) => OnSelectedModeChanged(value))" Label="Mode" Variant="Variant.Outlined" FullWidth="true">
-                    <MudSelectItem Value="@( "chat" )">💬 Chat</MudSelectItem>
-                    <MudSelectItem Value="@( "code" )">💻 Code</MudSelectItem>
-                    <MudSelectItem Value="@( "debug" )">🐛 Debug</MudSelectItem>
-                    <MudSelectItem Value="@( "explain" )">📚 Explain</MudSelectItem>
+                    <MudSelectItem Value="@( "chat" )">Chat</MudSelectItem>
+                    <MudSelectItem Value="@( "code" )">Code</MudSelectItem>
+                    <MudSelectItem Value="@( "debug" )">Debug</MudSelectItem>
+                    <MudSelectItem Value="@( "explain" )">Explain</MudSelectItem>
                 </MudSelect>
 
                 <MudTextField Value="Prompt" ValueChanged="@((string value) => OnPromptChanged(value))" Label="Your prompt" Placeholder="Ask me anything..." Lines="3" FullWidth="true" Variant="Variant.Outlined" Disabled="IsSending || IsWarmingUp" />
@@ -104,7 +104,7 @@
                         <MudStack Spacing="1">
                             @foreach (var session in Sessions)
                             {
-                                <MudListItem T="MudStack" Selected="@IsSelected(session.SessionId)" OnClick="@(() => SelectSession(session.SessionId))" Class="rounded" Style="cursor: pointer;">
+                                <MudListItem T="MudStack" OnClick="@(() => SelectSession(session.SessionId))" Class="rounded" Style="cursor: pointer;">
                                     <MudStack Spacing="1" Class="w-100">
                                         <MudText Typo="Typo.body2" Class="font-weight-500">@session.Name</MudText>
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">@session.MessageCount msg</MudText>

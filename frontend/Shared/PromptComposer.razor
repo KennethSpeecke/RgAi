@@ -1,10 +1,7 @@
-@using MudBlazor
-@using frontend.Models
-
 <MudPaper Class="h-100 pa-4 d-flex flex-column" Elevation="1">
     <MudStack Spacing="1">
         <MudText Typo="Typo.h6">Compose prompt</MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">Tell the AI what you want and choose the right mode.</MudText>
+        <MudText Typo="Typo.body2">Tell the AI what you want and choose the right mode.</MudText>
     </MudStack>
 
     <MudStack Spacing="2" Class="mt-3" Style="flex:1;">
@@ -24,7 +21,7 @@
             <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@ErrorMessage</MudAlert>
         }
 
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@(IsSending || IsWarmingUp || string.IsNullOrWhiteSpace(Prompt) || string.IsNullOrWhiteSpace(SessionId))" OnClick="SendPrompt">
+        <MudButton Variant="Variant.Filled" FullWidth="true" Disabled="@(IsSending || IsWarmingUp || string.IsNullOrWhiteSpace(Prompt) || string.IsNullOrWhiteSpace(SessionId))" OnClick="SendPrompt">
             @(IsSending ? "Sending..." : IsWarmingUp ? "Warming up..." : "Send prompt")
         </MudButton>
     </div>
