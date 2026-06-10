@@ -26,8 +26,6 @@ D:\RgAi\frontend\obj\Debug\net10.0\scopedcss\projectbundle\frontend.bundle.scp.c
 D:\RgAi\frontend\obj\Debug\net10.0\compressed\782tu8m8ax-{0}-bpk8xqwxhs-bpk8xqwxhs.gz
 D:\RgAi\frontend\obj\Debug\net10.0\compressed\sfgwnhrm3z-{0}-8inm30yfxf-8inm30yfxf.gz
 D:\RgAi\frontend\obj\Debug\net10.0\compressed\faj5podv77-{0}-61n19gt1b8-61n19gt1b8.gz
-D:\RgAi\frontend\obj\Debug\net10.0\compressed\8hdilx8bgn-{0}-ej96puwv3k-ej96puwv3k.gz
-D:\RgAi\frontend\obj\Debug\net10.0\compressed\ne2244dsjb-{0}-cj5793hgrt-cj5793hgrt.gz
 D:\RgAi\frontend\obj\Debug\net10.0\staticwebassets.build.json
 D:\RgAi\frontend\obj\Debug\net10.0\staticwebassets.build.json.cache
 D:\RgAi\frontend\obj\Debug\net10.0\staticwebassets.development.json
@@ -293,4 +291,7 @@ D:\RgAi\frontend\obj\Debug\net10.0\compressed\22irybz92j-{0}-px2zma4xf1-px2zma4x
 D:\RgAi\frontend\obj\Debug\net10.0\compressed\ljvc2h8xom-{0}-o64s4n8ltk-o64s4n8ltk.gz
 D:\RgAi\frontend\obj\Debug\net10.0\compressed\qpfr4rw87m-{0}-7xmohmh63a-7xmohmh63a.gz
 D:\RgAi\frontend\obj\Debug\net10.0\compressed\1sy9wb9jkf-{0}-x65islzhvu-x65islzhvu.gz
-D:\RgAi\frontend\obj\Debug\net10.0\compressed\dkemvg3dy8-{0}-pzp7ed2k3h-pzp7ed2k3h.gz
+D:\RgAi\frontend\obj\Debug\net10.0\frontend.sourcelink.json
+D:\RgAi\frontend\obj\Debug\net10.0\compressed\dkemvg3dy8-{0}-nrx6n0spfe-nrx6n0spfe.gz
+D:\RgAi\frontend\obj\Debug\net10.0\compressed\8hdilx8bgn-{0}-ne14ti1q68-ne14ti1q68.gz
+D:\RgAi\frontend\obj\Debug\net10.0\compressed\ne2244dsjb-{0}-ig5xotzpx5-ig5xotzpx5.gz
