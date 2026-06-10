@@ -1,276 +1,397 @@
 # RgAi - RAG with AI
 
-Full-stack containerized application with LLM inference, vector embeddings, and a modern frontend.
+Full-stack containerized application with LLM inference, vector embeddings, and semantic search capabilities.
 
-## 🏗️ Architecture
+## Technology Stack
+
+### Backend
+- **.NET 10.0** - ASP.NET Core runtime
+- **C#** - Primary language
+- **Multi-stage Docker build** - Optimized image size
+
+### Frontend
+- **.NET 10.0** - ASP.NET Core runtime
+- **C#** - Primary language
+- **Multi-stage Docker build** - Optimized image size
+
+### Infrastructure & Services
+- **Docker Compose** - Service orchestration
+- **Ollama** - LLM inference engine (latest)
+- **Qdrant** - Vector database (latest)
+- **NVIDIA CUDA** - GPU acceleration (optional)
+
+## Architecture
 
 ```
-Frontend (React)              Backend API (FastAPI)         Services
-  :3000                         :8000                    
-    │                             │                        ┌─────────┐
-    └─────────────────────────────┼────────────────────────→│ Ollama  │
-                                  │                        │  LLM    │
-                                  ├────────────────────────→│ :11434  │
-                                  │                        └─────────┘
-                                  │                        ┌─────────┐
-                                  └────────────────────────→│ Qdrant  │
-                                                           │ Vector  │
-                                                           │ :6333   │
-                                                           └─────────┘
+Frontend (.NET)               Backend (.NET)              External Services
+Port 3000 (HTTP)             Port 8000 (HTTP)
+    │                            │
+    └────────────────────────────┤
+                                 │
+                    ┌────────────┼────────────┐
+                    │            │            │
+                    ▼            ▼            ▼
+              Ollama LLM    Qdrant VectorDB  External APIs
+              Port 11434    Ports 6333/6334
+              (GPU Ready)   (Vector Storage)
 ```
 
-## 📦 Services
+## System Requirements
 
-| Service | Image | Port | Purpose |
-|---------|-------|------|---------|
-| **Frontend** | Node.js 18 Alpine | 3000 | React UI |
-| **Backend** | Python 3.11 Slim | 8000 | FastAPI REST API |
-| **LLM** | Ollama | 11434 | Code generation, inference |
-| **Vector DB** | Qdrant | 6333 | Semantic search, embeddings |
+- **Docker Desktop** (latest) with Compose v2
+- **Disk Space**: 15GB+ (for LLM models and persistent data)
+- **RAM**: 8GB minimum (4GB available for containers)
+- **CPU**: 2+ cores recommended
+- **GPU** (Optional): NVIDIA GPU with CUDA support for accelerated inference
 
-## 🚀 Quick Start
+## Quick Start
 
-### Option 1: Automated Setup (Recommended)
-
-**macOS/Linux:**
+### Prerequisites
+1. Copy environment template:
 ```bash
-./setup.sh
+cp .env.example .env.local
 ```
 
-**Windows:**
-```bash
-setup.bat
-```
+2. Update `.env.local` with your configuration (API keys, ports, etc.)
 
-### Option 2: Manual Setup
+### Build and Run
 
 ```bash
-# 1. Build all images
+# Build all services
 docker compose build
 
-# 2. Start services
+# Start all services
 docker compose up -d
 
-# 3. Pull LLM model
-docker compose exec llm ollama pull qwen3-coder
-
-# 4. Verify
-curl http://localhost:8000/health
+# Verify services are running
+docker compose ps
 ```
 
-## 📁 Data Structure
+### First-Time Setup
 
-All persistent data stored in `Data/` folder:
+```bash
+# Pull LLM model (example: qwen3-coder)
+docker compose exec llm ollama pull qwen3-coder
+
+# Verify backend health
+curl http://localhost:8000/health
+
+# Check frontend
+open http://localhost:3000
+```
+
+## Services
+
+| Service | Container | Port(s) | Purpose |
+|---------|-----------|---------|---------|
+| **Backend** | rgai-backend | 8000 | ASP.NET Core API |
+| **Frontend** | rgai-frontend | 3000 | ASP.NET Core Web UI |
+| **LLM** | rgai-llm | 11434 | Ollama inference engine |
+| **Vector DB** | rgai-qdrant | 6333, 6334 | Qdrant vector database |
+
+## Data Persistence
+
+All persistent data is stored in the `Data/` directory (not tracked in Git):
 
 ```
 Data/
-├── llm/              # LLM models & cache
-├── qdrant/           # Vector database
-├── backend/          # Logs & cache
-└── shared/           # Uploads & metadata
+├── llm/
+│   ├── models/          LLM model files (~7GB per model)
+│   └── cache/           Model cache and temporary files
+├── qdrant/
+│   ├── storage/         Vector database collections
+│   └── snapshots/       Database backup snapshots
+├── backend/
+│   ├── logs/            Application logs
+│   └── cache/           Application cache
+└── shared/
+    ├── uploads/         User-uploaded files
+    └── metadata/        Configuration and metadata files
 ```
 
-See `Data/README.md` for details.
+## Environment Variables
 
-## 📚 Documentation
+Create `.env.local` from `.env.example`. Key variables:
 
-- **[SETUP.md](./SETUP.md)** - Complete setup & troubleshooting guide
-- **[Data/README.md](./Data/README.md)** - Data folder organization
-- **[Backend API Docs](http://localhost:8000/docs)** - Swagger UI (when running)
+```env
+# Database
+QDRANT_API_KEY=your-secure-api-key
 
-## 🔗 Service URLs
+# Backend
+BACKEND_HOST=0.0.0.0
+BACKEND_PORT=8000
+DEBUG=false
 
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:3000 |
-| Backend API | http://localhost:8000 |
-| API Docs | http://localhost:8000/docs |
-| Ollama | http://localhost:11434 |
-| Qdrant | http://localhost:6333 |
+# Frontend
+REACT_APP_API_URL=http://localhost:8000
+REACT_APP_API_WS_URL=ws://localhost:8000
 
-## 🛠️ Common Commands
+# LLM
+LLM_HOST=llm
+LLM_PORT=11434
+LLM_MODEL=qwen3-coder
+LLM_TIMEOUT=300
 
+# Logging
+LOG_LEVEL=INFO
+LOG_DIR=./Data/backend/logs
+
+# Storage
+UPLOADS_MAX_SIZE=52428800
+DATA_RETENTION_DAYS=30
+```
+
+## Common Operations
+
+### View Service Status
 ```bash
-# View all services
 docker compose ps
+docker compose ps --format "table {{.Service}}\t{{.Status}}\t{{.Ports}}"
+```
 
-# View logs
+### View Logs
+```bash
+# All services
 docker compose logs -f
 
-# View specific service logs
+# Specific service
 docker compose logs -f backend
+docker compose logs -f llm
+docker compose logs -f qdrant
+docker compose logs -f frontend
+```
 
-# Restart services
+### Restart Services
+```bash
+# All services
 docker compose restart
 
-# Stop services (keeps data)
+# Specific service
+docker compose restart backend
+```
+
+### Stop Services (Preserves Data)
+```bash
 docker compose stop
+```
 
-# Remove containers (keeps data)
+### Remove Services (Deletes Containers, Preserves Data)
+```bash
 docker compose down
+```
 
-# Remove everything (deletes data!)
+### Full Cleanup (Deletes Everything including Volumes)
+```bash
 docker compose down -v
 ```
 
-## 🧠 Using the LLM
+## LLM Model Management
 
-### Via CLI
-
+### Pull Models
 ```bash
-docker compose exec llm ollama run qwen3-coder "Write a Python hello world"
+# Pull specific model
+docker compose exec llm ollama pull qwen3-coder
+
+# Pull another model
+docker compose exec llm ollama pull mistral
 ```
 
-### Via Backend API
-
+### List Available Models
 ```bash
-curl -X POST http://localhost:8000/test-inference \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "Write a hello world function in Python"}'
+docker compose exec llm ollama list
 ```
 
-### Via Backend Python
-
-```python
-import requests
-
-response = requests.post(
-    "http://localhost:8000/test-inference",
-    json={"prompt": "Your prompt here"}
-)
-print(response.json())
+### Test Model Inference
+```bash
+docker compose exec llm ollama run qwen3-coder "Your prompt here"
 ```
 
-## 💾 Backup & Restore
+## API Endpoints
 
-### Backup
+### Health & Status
+- `GET /` - Service info
+- `GET /health` - Health check
+- `GET /status` - Detailed status
+
+### Backend Operations
+- API documentation available at: `http://localhost:8000/docs` (when Swagger is enabled)
+
+## Backup and Restore
+
+### Backup Data
 ```bash
 tar -czf rgai-backup-$(date +%Y%m%d_%H%M%S).tar.gz Data/
 ```
 
-### Restore
+### Restore Data
 ```bash
+# Stop services first
+docker compose down
+
+# Extract backup
 tar -xzf rgai-backup-YYYYMMDD_HHMMSS.tar.gz
+
+# Start services
 docker compose up -d
 ```
 
-## 📊 System Requirements
+## Troubleshooting
 
-- **Docker Desktop** (latest)
-- **Disk Space**: 15GB+ (for models & data)
-- **RAM**: 4GB+ available
-- **CPU**: 2+ cores recommended
-
-## 🔍 Troubleshooting
-
-### Services won't start
+### Services Won't Start
 ```bash
-docker compose logs -f
-docker system df  # Check disk space
+# Check compose logs
+docker compose logs
+
+# Check disk space
+docker system df
+
+# Check Docker daemon
+docker ps
 ```
 
-### Can't connect to services
+### Port Already in Use
 ```bash
-docker compose ps --format "table {{.Service}}\t{{.Status}}"
-docker network inspect rgai_network
+# Find process using port
+lsof -i :3000
+lsof -i :8000
+lsof -i :11434
+
+# Change port in docker-compose.yml or .env.local
 ```
 
-### Out of disk space
+### Out of Disk Space
 ```bash
+docker system df
 docker system prune -a
 docker volume prune
 ```
 
-See **[SETUP.md](./SETUP.md)** for more troubleshooting.
-
-## 📝 Environment Variables
-
-Copy `.env.example` to `.env` and configure:
-
+### Cannot Connect to Services
 ```bash
-QDRANT_API_KEY=your-key-here
-BACKEND_HOST=0.0.0.0
-BACKEND_PORT=8000
-LLM_MODEL=qwen3-coder
-LOG_LEVEL=INFO
+# Check network
+docker network ls
+docker network inspect rgai_network
+
+# Check container networking
+docker inspect rgai-backend
+docker inspect rgai-frontend
 ```
 
-## 🏭 Project Structure
+### GPU Not Detected
+```bash
+# Verify NVIDIA Docker runtime
+docker run --rm --gpus all nvidia/cuda:11.0-runtime nvidia-smi
 
-```
-RgAi/
-├── backend/              # FastAPI backend
-│   ├── main.py           # Entry point
-│   ├── requirements.txt   # Dependencies
-│   └── Dockerfile        # Container image
-├── frontend/             # React frontend
-│   ├── src/              # Components
-│   ├── public/           # Assets
-│   ├── package.json      # Dependencies
-│   └── Dockerfile        # Container image
-├── Data/                 # All persistent data
-│   └── README.md         # Data organization
-├── docker-compose.yml    # Service orchestration
-├── .env.example          # Environment template
-├── setup.sh              # Setup script (macOS/Linux)
-├── setup.bat             # Setup script (Windows)
-└── SETUP.md              # Detailed setup guide
+# Check compose logs for GPU errors
+docker compose logs llm
 ```
 
-## 🔐 Security Notes
-
-- Change `QDRANT_API_KEY` in `.env` for production
-- Don't commit `.env` file to Git
-- Use `.env.local` for local-only overrides
-- See `SETUP.md` for production deployment tips
-
-## 📖 API Endpoints
-
-### Health & Status
+## Project Structure
 
 ```
-GET  /                    # Info
-GET  /health              # Health check
-GET  /status              # Detailed status
+.
+├── backend/                    C# ASP.NET Core backend
+│   ├── Dockerfile             Multi-stage build
+│   └── *.csproj               Project configuration
+├── frontend/                   C# ASP.NET Core frontend
+│   ├── Dockerfile             Multi-stage build
+│   └── *.csproj               Project configuration
+├── Data/                       Persistent data (not in Git)
+│   ├── llm/                   LLM models and cache
+│   ├── qdrant/                Vector database storage
+│   ├── backend/               Backend logs and cache
+│   └── shared/                Shared uploads and metadata
+├── docker-compose.yml         Service orchestration
+├── .env.example               Environment template
+├── .env.local                 Local configuration (not in Git)
+├── .dockerignore              Docker build exclusions
+├── .gitignore                 Git exclusions
+└── README.md                  This file
 ```
 
-### LLM Integration
+## Development Workflow
 
+### Local Development
+1. Set environment in `.env.local`
+2. Start services: `docker compose up -d`
+3. Modify code in `backend/` or `frontend/` directories
+4. Rebuild specific service: `docker compose build backend`
+5. Restart service: `docker compose restart backend`
+
+### Adding Dependencies
+**Backend (.NET)**: Edit `backend.csproj` and rebuild
+```bash
+docker compose build backend
+docker compose up -d backend
 ```
-POST /test-inference      # Test LLM inference
+
+**Frontend (.NET)**: Edit `frontend.csproj` and rebuild
+```bash
+docker compose build frontend
+docker compose up -d frontend
 ```
 
-### Data
+## Performance Tuning
 
+### CPU/Memory Limits
+Edit `docker-compose.yml` to add resource limits:
+```yaml
+services:
+  backend:
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
 ```
-POST /upload              # Upload file
-GET  /files               # List files
-GET  /files/{id}          # Get file
-```
 
-*(Add more endpoints as you develop)*
+### GPU Configuration
+Ollama service includes NVIDIA GPU support. Ensure:
+- NVIDIA Docker runtime installed
+- NVIDIA drivers installed on host
+- `docker-compose.yml` GPU section configured
 
-## 🤝 Contributing
+## Security Considerations
 
-1. Create a feature branch
-2. Make your changes
-3. Test locally: `docker compose up`
-4. Commit and push
+- Keep `QDRANT_API_KEY` secure and unique
+- Do not commit `.env.local` to version control
+- Use strong credentials for production
+- Restrict network access to services as needed
+- Consider using a reverse proxy (nginx) in production
+- Enable HTTPS/TLS for production deployments
 
-## 📄 License
+## Production Deployment
+
+For production, consider:
+- Using a managed Qdrant instance
+- Implementing proper logging and monitoring
+- Setting up automated backups
+- Using environment-specific configurations
+- Deploying to Kubernetes or container orchestration platform
+- Adding rate limiting and authentication to APIs
+- Using a CDN for frontend assets
+- Implementing health checks and auto-recovery
+
+## Contributing
+
+1. Clone the repository
+2. Create a feature branch
+3. Make changes in `backend/` or `frontend/` directories
+4. Test locally: `docker compose up`
+5. Commit and push changes
+6. Open pull request
+
+## License
 
 [Your License Here]
 
-## 🆘 Support
+## Support
 
-- Check [SETUP.md](./SETUP.md) for troubleshooting
-- Review `docker compose logs -f` for errors
-- See [Data/README.md](./Data/README.md) for data management
-
----
-
-**Next Steps:**
-1. ✅ Run `./setup.sh` (or `setup.bat` on Windows)
-2. 🧠 Pull the LLM model: `docker compose exec llm ollama pull qwen3-coder`
-3. 🔍 Verify everything: `curl http://localhost:8000/health`
-4. 🚀 Start building!
+For issues or questions:
+- Check service logs: `docker compose logs -f`
+- Review error messages in `Data/backend/logs/`
+- Verify all services are healthy: `docker compose ps`
+- Check disk space and resource availability
