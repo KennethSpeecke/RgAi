@@ -50,7 +50,7 @@
                             <div class="@(message.Role == "user" ? "user-message" : "assistant-message")">
                                 <MudPaper Class="pa-3" Elevation="0" Style="@(message.Role == "user" ? "background: rgba(124, 58, 237, 0.15); border-left: 3px solid #7c3aed;" : "background: rgba(34, 211, 238, 0.08); border-left: 3px solid #22d3ee;")">
                                     <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">@(message.Role == "user" ? "You" : "Assistant")</MudText>
-                                    <MudText Typo="Typo.body2" Style="white-space: pre-wrap; line-height: 1.6;">@message.Content</MudText>
+                                    <MudMarkdown Value="@message.Content" HasTableOfContents="false"/>
                                 </MudPaper>
                             </div>
                         }
