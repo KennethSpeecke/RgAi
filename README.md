@@ -386,7 +386,9 @@ For production, consider:
 
 ## License
 
-~~Redacted~~
+[![License: MIT](https://shields.io)](https://opensource.org)
+
+This project is licensed under the MIT License.
 
 ## Support
 
