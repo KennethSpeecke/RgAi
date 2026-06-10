@@ -386,7 +386,7 @@ For production, consider:
 
 ## License
 
-[Your License Here]
+~~Redacted~~
 
 ## Support
 
