@@ -1,0 +1,499 @@
+﻿@page "/"
+@using frontend.Models
+@using frontend.Shared
+@using System.Net.Http.Json
+@inject IHttpClientFactory HttpClientFactory
+@inject IJSRuntime JSRuntime
+
+<PageTitle>RgAi Studio</PageTitle>
+
+<MudGrid Spacing="4" Class="h-100">
+    <!-- Header Card -->
+    <MudItem xs="12">
+        <MudPaper Class="pa-6 mud-gradient-primary" Elevation="0">
+            <MudStack Direction="Row" AlignItems="AlignItems.Center" JustifyContent="Justify.SpaceBetween">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.h4" Class="font-weight-bold">Welcome to RgAi Studio</MudText>
+                    <MudText Typo="Typo.body1" Color="Color.Secondary">Your AI-powered workspace for conversations and insights</MudText>
+                </MudStack>
+                <MudChip T="string" Color="@(IsWarmingUp ? Color.Warning : Color.Success)" Variant="Variant.Filled" Icon="@(IsWarmingUp ? Icons.Material.Filled.Schedule : Icons.Material.Filled.CheckCircle)" Size="Size.Large">
+                    @(IsWarmingUp ? "Warming Up" : "Ready")
+                </MudChip>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <!-- Main Content Area -->
+    <MudItem xs="12" sm="12" md="9">
+        <!-- Chat Display -->
+        <MudPaper Class="mud-glass-effect pa-6 h-100 d-flex flex-column" Elevation="1" Style="background: rgba(17, 24, 39, 0.5); backdrop-filter: blur(10px);">
+            <MudStack Spacing="2" Class="mb-4">
+                <MudText Typo="Typo.h6" Class="font-weight-bold">Conversation</MudText>
+                <MudDivider Class="my-2" />
+            </MudStack>
+            
+            <div class="chat-viewport flex-grow-1 overflow-y-auto mb-4">
+                @if (Messages.Count == 0)
+                {
+                    <MudStack Spacing="3" AlignItems="AlignItems.Center" JustifyContent="Justify.Center" Class="h-100">
+                        <MudIcon Icon="@Icons.Material.Filled.ChatBubbleOutline" Size="Size.Large" Color="Color.Secondary" />
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                            Start a conversation by sending a message. Your chat history will appear here.
+                        </MudText>
+                    </MudStack>
+                }
+                else
+                {
+                    <MudStack Spacing="2">
+                        @foreach (var message in Messages)
+                        {
+                            <div class="@(message.Role == "user" ? "user-message" : "assistant-message")">
+                                <MudPaper Class="pa-3" Elevation="0" Style="@(message.Role == "user" ? "background: rgba(124, 58, 237, 0.15); border-left: 3px solid #7c3aed;" : "background: rgba(34, 211, 238, 0.08); border-left: 3px solid #22d3ee;")">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">@(message.Role == "user" ? "You" : "Assistant")</MudText>
+                                    <MudText Typo="Typo.body2" Style="white-space: pre-wrap; line-height: 1.6;">@message.Content</MudText>
+                                </MudPaper>
+                            </div>
+                        }
+                    </MudStack>
+                }
+            </div>
+
+            <!-- Input Area -->
+            <MudDivider Class="my-3" />
+            <MudStack Spacing="2">
+                <MudSelect T="string" Value="SelectedMode" ValueChanged="@((string value) => OnSelectedModeChanged(value))" Label="Mode" Variant="Variant.Outlined" FullWidth="true">
+                    <MudSelectItem Value="@( "chat" )">💬 Chat</MudSelectItem>
+                    <MudSelectItem Value="@( "code" )">💻 Code</MudSelectItem>
+                    <MudSelectItem Value="@( "debug" )">🐛 Debug</MudSelectItem>
+                    <MudSelectItem Value="@( "explain" )">📚 Explain</MudSelectItem>
+                </MudSelect>
+
+                <MudTextField Value="Prompt" ValueChanged="@((string value) => OnPromptChanged(value))" Label="Your prompt" Placeholder="Ask me anything..." Lines="3" FullWidth="true" Variant="Variant.Outlined" Disabled="IsSending || IsWarmingUp" />
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Disabled="@(IsSending || IsWarmingUp || string.IsNullOrWhiteSpace(Prompt) || string.IsNullOrWhiteSpace(SessionId))" OnClick="SendPrompt" EndIcon="@Icons.Material.Filled.Send">
+                    @(IsSending ? "Sending..." : IsWarmingUp ? "Warming up..." : "Send Message")
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <!-- Sidebar -->
+    <MudItem xs="12" sm="12" md="3">
+        <MudStack Spacing="3">
+            <!-- Sessions Card -->
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.h6" Class="font-weight-bold">Sessions</MudText>
+                    <MudDivider Class="my-2" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" StartIcon="@Icons.Material.Filled.Add" OnClick="CreateNewSession">New Session</MudButton>
+                </MudStack>
+
+                <div class="session-list mt-4" style="max-height: 300px; overflow-y: auto;">
+                    @if (IsLoadingSessions)
+                    {
+                        <div class="d-flex justify-center pa-4">
+                            <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Info" />
+                        </div>
+                    }
+                    else if (Sessions is { Count: 0 })
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">No sessions yet</MudText>
+                    }
+                    else
+                    {
+                        <MudStack Spacing="1">
+                            @foreach (var session in Sessions)
+                            {
+                                <MudListItem T="MudStack" Selected="@IsSelected(session.SessionId)" OnClick="@(() => SelectSession(session.SessionId))" Class="rounded" Style="cursor: pointer;">
+                                    <MudStack Spacing="1" Class="w-100">
+                                        <MudText Typo="Typo.body2" Class="font-weight-500">@session.Name</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@session.MessageCount msg</MudText>
+                                    </MudStack>
+                                </MudListItem>
+                            }
+                        </MudStack>
+                    }
+                </div>
+            </MudPaper>
+
+            <!-- Session Actions Card -->
+            @if (!string.IsNullOrWhiteSpace(SessionId))
+            {
+                <MudPaper Class="pa-4" Elevation="1">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.subtitle2" Class="font-weight-bold">Active Session</MudText>
+                        <MudDivider Class="my-2" />
+                        <MudTextField @bind-Value="RenameSessionName" Label="Rename" Placeholder="Session name" Variant="Variant.Outlined" FullWidth="true" />
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" Disabled="@(string.IsNullOrWhiteSpace(RenameSessionName))" OnClick="RenameCurrentSession" Size="Size.Small">Save Name</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Error" FullWidth="true" OnClick="DeleteCurrentSession" Size="Size.Small">Delete</MudButton>
+                    </MudStack>
+                </MudPaper>
+            }
+        </MudStack>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private string Prompt { get; set; } = string.Empty;
+    private string SelectedMode { get; set; } = "chat";
+    private bool IsSending { get; set; }
+    private bool IsWarmingUp { get; set; }
+    private bool IsLoadingSessions { get; set; }
+    private string ErrorMessage { get; set; } = string.Empty;
+    private string SessionId { get; set; } = string.Empty;
+    private string CurrentSessionName { get; set; } = "New session";
+    private string RenameSessionName { get; set; } = string.Empty;
+    private List<ChatSession> Sessions { get; } = new();
+    private List<ChatMessage> Messages { get; } = new();
+
+    private async Task OnPromptChanged(string value)
+    {
+        Prompt = value;
+        StateHasChanged();
+    }
+
+    private async Task OnSelectedModeChanged(string value)
+    {
+        SelectedMode = value;
+        StateHasChanged();
+    }
+
+    private bool IsSelected(string sessionId)
+        => string.Equals(SessionId, sessionId, StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            SessionId = await GetOrCreateSessionId();
+            await EnsureCurrentSessionExists();
+            await LoadSessionsAsync();
+            await LoadSessionHistory(SessionId);
+            await WarmUpAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task<string> GetOrCreateSessionId()
+    {
+        const string storageKey = "rgaiSessionId";
+        var existingId = await JSRuntime.InvokeAsync<string>("localStorage.getItem", storageKey);
+        if (!string.IsNullOrWhiteSpace(existingId))
+        {
+            return existingId;
+        }
+
+        var newId = Guid.NewGuid().ToString();
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", storageKey, newId);
+        return newId;
+    }
+
+    private async Task SetLocalStorageSessionId(string sessionId)
+    {
+        const string storageKey = "rgaiSessionId";
+        SessionId = sessionId;
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", storageKey, sessionId);
+    }
+
+    private async Task EnsureCurrentSessionExists()
+    {
+        if (string.IsNullOrWhiteSpace(SessionId))
+        {
+            SessionId = Guid.NewGuid().ToString();
+            await SetLocalStorageSessionId(SessionId);
+        }
+
+        var client = HttpClientFactory.CreateClient("Api");
+        var response = await client.PostAsJsonAsync("/api/v1/sessions", new SessionCreateRequest(SessionId, CurrentSessionName));
+        if (response.IsSuccessStatusCode)
+        {
+            var data = await response.Content.ReadFromJsonAsync<SessionCreateResponse>();
+            if (data?.Session is not null)
+            {
+                CurrentSessionName = data.Session.Name;
+                RenameSessionName = data.Session.Name;
+            }
+        }
+    }
+
+    private async Task LoadSessionsAsync()
+    {
+        IsLoadingSessions = true;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("Api");
+            var response = await client.GetFromJsonAsync<SessionListResponse>("/api/v1/sessions");
+            if (response?.Sessions is not null)
+            {
+                Sessions.Clear();
+                Sessions.AddRange(response.Sessions);
+            }
+        }
+        catch
+        {
+            // ignore failures for sessions list
+        }
+        finally
+        {
+            IsLoadingSessions = false;
+        }
+    }
+
+    private async Task LoadSessionHistory(string sessionId)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            return;
+        }
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("Api");
+            var response = await client.GetFromJsonAsync<SessionResponse>($"/api/v1/sessions/{sessionId}");
+            if (response?.Session is not null)
+            {
+                CurrentSessionName = response.Session.Name;
+                RenameSessionName = response.Session.Name;
+            }
+
+            Messages.Clear();
+            if (response?.Messages is not null)
+            {
+                foreach (var message in response.Messages)
+                {
+                    Messages.Add(new ChatMessage(message.Role, message.Content));
+                }
+            }
+        }
+        catch
+        {
+            Messages.Clear();
+        }
+    }
+
+    private async Task CreateNewSession()
+    {
+        var sessionId = Guid.NewGuid().ToString();
+        var client = HttpClientFactory.CreateClient("Api");
+        var result = await client.PostAsJsonAsync("/api/v1/sessions", new SessionCreateRequest(sessionId, "New session"));
+        if (result.IsSuccessStatusCode)
+        {
+            var data = await result.Content.ReadFromJsonAsync<SessionCreateResponse>();
+            if (data?.Session is not null)
+            {
+                await SetLocalStorageSessionId(data.Session.SessionId);
+                await LoadSessionsAsync();
+                await LoadSessionHistory(data.Session.SessionId);
+            }
+        }
+    }
+
+    private async Task SelectSession(string sessionId)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || sessionId == SessionId)
+        {
+            return;
+        }
+
+        await SetLocalStorageSessionId(sessionId);
+        await LoadSessionsAsync();
+        await LoadSessionHistory(sessionId);
+    }
+
+    private async Task RenameCurrentSession()
+    {
+        if (string.IsNullOrWhiteSpace(SessionId) || string.IsNullOrWhiteSpace(RenameSessionName))
+        {
+            return;
+        }
+
+        var client = HttpClientFactory.CreateClient("Api");
+        var result = await client.PutAsJsonAsync($"/api/v1/sessions/{SessionId}", new SessionRenameRequest(RenameSessionName));
+        if (result.IsSuccessStatusCode)
+        {
+            await LoadSessionsAsync();
+        }
+    }
+
+    private async Task DeleteCurrentSession()
+    {
+        if (string.IsNullOrWhiteSpace(SessionId))
+        {
+            return;
+        }
+
+        var client = HttpClientFactory.CreateClient("Api");
+        var result = await client.DeleteAsync($"/api/v1/sessions/{SessionId}");
+        if (!result.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        await LoadSessionsAsync();
+        if (Sessions.Count > 0)
+        {
+            await SelectSession(Sessions[0].SessionId);
+        }
+        else
+        {
+            SessionId = string.Empty;
+            Messages.Clear();
+            CurrentSessionName = "New session";
+            RenameSessionName = string.Empty;
+        }
+    }
+
+    private const int WarmUpMaxAttempts = 4;
+    private const int WarmUpInitialDelayMs = 1000;
+
+    private async Task WarmUpAsync()
+    {
+        IsWarmingUp = true;
+        ErrorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var attempt = 0;
+            var delayMs = WarmUpInitialDelayMs;
+            while (attempt < WarmUpMaxAttempts)
+            {
+                attempt++;
+                if (await TryWarmUpAsync())
+                {
+                    ErrorMessage = string.Empty;
+                    return;
+                }
+
+                if (attempt < WarmUpMaxAttempts)
+                {
+                    await Task.Delay(delayMs);
+                    delayMs *= 2;
+                }
+            }
+
+            ErrorMessage = "AI service is warming up. The first request may take several minutes while the model loads. Please try again in a moment.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"AI warmup failed: {ex.Message}";
+        }
+        finally
+        {
+            IsWarmingUp = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<bool> TryWarmUpAsync()
+    {
+        var client = HttpClientFactory.CreateClient("Api");
+        try
+        {
+            var response = await client.PostAsync("/api/v1/system/warmup", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task SendPrompt()
+    {
+        ErrorMessage = string.Empty;
+        if (string.IsNullOrWhiteSpace(Prompt) || string.IsNullOrWhiteSpace(SessionId))
+        {
+            return;
+        }
+
+        IsSending = true;
+        var promptText = Prompt.Trim();
+        Messages.Add(new ChatMessage("user", promptText));
+        Prompt = string.Empty;
+
+        // Add a loading message immediately for user feedback
+        var loadingMessageIndex = Messages.Count;
+        Messages.Add(new ChatMessage("assistant", "⏳ Thinking..."));
+        StateHasChanged();
+        
+        // Scroll to bottom to show the loading message
+        await ScrollToBottomAsync();
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("Api");
+            var request = new InferenceRequest
+            {
+                Prompt = promptText,
+                Mode = SelectedMode,
+                Temperature = 0.7m,
+                MaxTokens = 2048,
+                SessionId = SessionId
+            };
+
+            var response = await client.PostAsJsonAsync("/api/v1/inference", request);
+            if (response.IsSuccessStatusCode)
+            {
+                var data = await response.Content.ReadFromJsonAsync<InferenceResponse>();
+                if (data is not null)
+                {
+                    // Replace the loading message with actual response
+                    var actualResponse = string.IsNullOrWhiteSpace(data.Response) ? "No response returned." : data.Response;
+                    Messages[loadingMessageIndex] = new ChatMessage("assistant", actualResponse);
+                }
+                else
+                {
+                    ErrorMessage = "Failed to parse AI response.";
+                    Messages[loadingMessageIndex] = new ChatMessage("assistant", "❌ Failed to parse response.");
+                }
+            }
+            else
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                ErrorMessage = $"Error from API: {response.StatusCode} - {body}";
+                Messages[loadingMessageIndex] = new ChatMessage("assistant", $"❌ API Error: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Request failed: {ex.Message}";
+            Messages[loadingMessageIndex] = new ChatMessage("assistant", "❌ Request failed. Try again.");
+        }
+        finally
+        {
+            IsSending = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ScrollToBottomAsync()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("scrollToBottom", "chat-viewport");
+        }
+        catch { }
+    }
+
+    private sealed record SessionListResponse(List<ChatSession> Sessions, int Total);
+    private sealed record SessionResponse(ChatSession Session, List<ChatHistoryItem> Messages);
+    private sealed record SessionCreateResponse(ChatSession Session);
+    private sealed record SessionCreateRequest(string SessionId, string Name);
+    private sealed record SessionRenameRequest(string Name);
+    private sealed record ChatHistoryItem(string Role, string Content, string Timestamp);
+    private sealed record InferenceResponse(string Response, string Mode, string Prompt, string Model);
+}
+
+<script>
+    window.scrollToBottom = function(elementId) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            setTimeout(() => {
+                element.scrollTop = element.scrollHeight;
+            }, 10);
+        }
+    };
+</script>
+

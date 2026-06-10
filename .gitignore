@@ -1,0 +1,47 @@
+# Data folders (local persistence only)
+Data/
+!Data/README.md
+!Data/.gitkeep
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+.AppleDouble
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.egg-info/
+venv/
+.venv/
+
+# Logs
+*.log
+logs/
+
+# Build artifacts
+build/
+dist/
+*.egg
+
+# Python
+.pytest_cache/
+.coverage
+.mypy_cache/
+
+# Node
+npm-debug.log
+yarn-error.log

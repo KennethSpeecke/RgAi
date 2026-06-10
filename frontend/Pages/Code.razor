@@ -1,0 +1,432 @@
+@page "/code"
+@using frontend.Models
+@using System.Net.Http.Json
+@inject IHttpClientFactory HttpClientFactory
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Code Knowledge Base - RgAi Studio</PageTitle>
+
+<MudGrid Spacing="4" Class="h-100">
+    <!-- Header -->
+    <MudItem xs="12">
+        <MudPaper Class="pa-6 mud-gradient-primary" Elevation="0">
+            <MudStack Direction="Row" AlignItems="AlignItems.Center" JustifyContent="Justify.SpaceBetween">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.h4" Class="font-weight-bold">Code Knowledge Base</MudText>
+                    <MudText Typo="Typo.body1" Color="Color.Secondary">Index and search your code repositories for AI-powered insights</MudText>
+                </MudStack>
+                <MudChip T="string" 
+                         Color="@(IsIndexing ? Color.Warning : IndexingComplete ? Color.Success : Color.Default)" 
+                         Variant="Variant.Filled" 
+                         Icon="@(IsIndexing ? Icons.Material.Filled.Schedule : IndexingComplete ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Folder)" 
+                         Size="Size.Large">
+                    @(IsIndexing ? "Indexing..." : IndexingComplete ? "Ready" : "Idle")
+                </MudChip>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <!-- Main Content -->
+    <MudItem xs="12" sm="12" md="8">
+        <MudStack Spacing="3">
+            <!-- Index Repository Card -->
+            <MudPaper Class="pa-6" Elevation="1">
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.h6" Class="font-weight-bold">📁 Index Repository</MudText>
+                    <MudDivider Class="my-2" />
+                    
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Point to a code repository to make it searchable by the AI. Supports: C#, Python, JavaScript, TypeScript, Java, Go, Rust, and more.
+                    </MudText>
+
+                    <MudStack Spacing="2">
+                        <MudTextField @bind-Value="RepositoryPath" 
+                                     Label="Repository Path" 
+                                     Placeholder="e.g., /app/code or C:\code"
+                                     Variant="Variant.Outlined" 
+                                     FullWidth="true"
+                                     Disabled="IsIndexing"
+                                     HelperText="Absolute path to your code repository" />
+
+                        <MudSelect @bind-Value="SelectedSessionId" 
+                                  Label="Session (Optional)" 
+                                  Variant="Variant.Outlined" 
+                                  FullWidth="true"
+                                  Disabled="IsIndexing">
+                            <MudSelectItem Value="@("")">Global Knowledge Base</MudSelectItem>
+                            @foreach (var session in AvailableSessions)
+                            {
+                                <MudSelectItem Value="@session.SessionId">@session.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        <MudButton Variant="Variant.Filled" 
+                                  Color="Color.Primary" 
+                                  FullWidth="true" 
+                                  Size="Size.Large"
+                                  Disabled="@(IsIndexing || string.IsNullOrWhiteSpace(RepositoryPath))"
+                                  OnClick="IndexRepository"
+                                  StartIcon="@Icons.Material.Filled.CloudUpload">
+                            @(IsIndexing ? "Indexing..." : "Index Repository")
+                        </MudButton>
+                    </MudStack>
+
+                    @if (!string.IsNullOrWhiteSpace(IndexingMessage))
+                    {
+                        <MudAlert Severity="@IndexingMessageSeverity" Class="mt-4" ShowCloseButton="false">
+                            @IndexingMessage
+                        </MudAlert>
+                    }
+
+                    @if (IsIndexing)
+                    {
+                        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mt-4" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Scanning files and creating embeddings... This may take a few moments.
+                        </MudText>
+                    }
+                </MudStack>
+            </MudPaper>
+
+            <!-- Search Code Card -->
+            <MudPaper Class="pa-6" Elevation="1">
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.h6" Class="font-weight-bold">🔍 Search Indexed Code</MudText>
+                    <MudDivider Class="my-2" />
+
+                    <MudStack Spacing="2">
+                        <MudTextField @bind-Value="SearchQuery" 
+                                     Label="Search Query" 
+                                     Placeholder="e.g., authentication, error handling, database connection"
+                                     Variant="Variant.Outlined" 
+                                     FullWidth="true"
+                                     Disabled="IsSearching"
+                                     Lines="2" />
+
+                        <MudButton Variant="Variant.Filled" 
+                                  Color="Color.Secondary" 
+                                  FullWidth="true" 
+                                  Size="Size.Large"
+                                  Disabled="@(IsSearching || string.IsNullOrWhiteSpace(SearchQuery))"
+                                  OnClick="SearchCode"
+                                  StartIcon="@Icons.Material.Filled.Search">
+                            @(IsSearching ? "Searching..." : "Search Code")
+                        </MudButton>
+                    </MudStack>
+
+                    @if (SearchResults.Count > 0)
+                    {
+                        <MudDivider Class="my-4" />
+                        <MudText Typo="Typo.subtitle2" Class="font-weight-bold">Results (@SearchResults.Count found)</MudText>
+                        
+                        <MudStack Spacing="2" Class="mt-3">
+                            @foreach (var (index, result) in SearchResults.Select((r, i) => (i + 1, r)))
+                            {
+                                <MudPaper Class="pa-4" Elevation="0" Style="background: rgba(34, 211, 238, 0.05); border-left: 3px solid #22d3ee;">
+                                    <MudStack Spacing="2">
+                                        <MudStack Direction="Row" AlignItems="AlignItems.Center" JustifyContent="Justify.SpaceBetween">
+                                            <MudText Typo="Typo.subtitle2">Result @index</MudText>
+                                            <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Code" Variant="Variant.Outlined">
+                                                @result.Language
+                                            </MudChip>
+                                        </MudStack>
+                                        
+                                        @if (!string.IsNullOrWhiteSpace(result.FilePath))
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                📄 @result.FilePath
+                                                @if (result.StartLine > 0)
+                                                {
+                                                    <text>: lines @result.StartLine-@result.EndLine</text>
+                                                }
+                                            </MudText>
+                                        }
+                                        
+                                        <MudText Typo="Typo.body2" Style="white-space: pre-wrap; font-family: monospace; font-size: 0.875rem; background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 4px; max-height: 150px; overflow-y: auto;">
+                                            @result.Content
+                                        </MudText>
+
+                                        <MudButton Variant="Variant.Text" 
+                                                  Color="Color.Primary" 
+                                                  Size="Size.Small"
+                                                  OnClick="@(() => CopyToClipboard(result.Content))"
+                                                  StartIcon="@Icons.Material.Filled.ContentCopy">
+                                            Copy
+                                        </MudButton>
+                                    </MudStack>
+                                </MudPaper>
+                            }
+                        </MudStack>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(SearchQuery) && !IsSearching && SearchAttempted)
+                    {
+                        <MudAlert Severity="Severity.Info" Class="mt-4">
+                            No results found. Try a different query or index a repository first.
+                        </MudAlert>
+                    }
+                </MudStack>
+            </MudPaper>
+
+            <!-- Info Card -->
+            <MudPaper Class="pa-6" Elevation="1">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.subtitle2" Class="font-weight-bold">ℹ️ How It Works</MudText>
+                    <MudDivider Class="my-2" />
+                    
+                    <MudList T="@(MudListItem<MudText>)">
+                        <MudListItem Icon="@Icons.Material.Filled.Folder">
+                            <MudText Typo="Typo.body2"><strong>Scan:</strong> Automatically finds all code files in your repository</MudText>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.VolumeOff">
+                            <MudText Typo="Typo.body2"><strong>Chunk:</strong> Splits large files into searchable segments</MudText>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Psychology">
+                            <MudText Typo="Typo.body2"><strong>Embed:</strong> Generates semantic embeddings for understanding code meaning</MudText>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Storage">
+                            <MudText Typo="Typo.body2"><strong>Store:</strong> Saves indexed code in Qdrant for instant retrieval</MudText>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Lightbulb">
+                            <MudText Typo="Typo.body2"><strong>Use:</strong> AI uses retrieved code snippets to answer questions accurately</MudText>
+                        </MudListItem>
+                    </MudList>
+                </MudStack>
+            </MudPaper>
+        </MudStack>
+    </MudItem>
+
+    <!-- Sidebar -->
+    <MudItem xs="12" sm="12" md="4">
+        <MudStack Spacing="3">
+            <!-- Stats Card -->
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.h6" Class="font-weight-bold">📊 Statistics</MudText>
+                    <MudDivider Class="my-2" />
+                    
+                    <MudStack Direction="Row" JustifyContent="Justify.SpaceBetween">
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Files Indexed</MudText>
+                            <MudText Typo="Typo.h5" Class="font-weight-bold">@IndexingStats.FilesIndexed</MudText>
+                        </MudStack>
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Code Chunks</MudText>
+                            <MudText Typo="Typo.h5" Class="font-weight-bold">@IndexingStats.ChunksCreated</MudText>
+                        </MudStack>
+                    </MudStack>
+
+                    @if (IndexingStats.FilesIndexed > 0)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                            Last indexed: @IndexingStats.LastIndexedTime.ToString("g")
+                        </MudText>
+                    }
+                </MudStack>
+            </MudPaper>
+
+            <!-- Supported Languages -->
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.subtitle2" Class="font-weight-bold">✅ Supported Languages</MudText>
+                    <MudDivider Class="my-2" />
+                    
+                    <MudChipSet T="MudChip<string>" ReadOnly="true">
+                        @foreach (var lang in SupportedLanguages)
+                        {
+                            <MudChip Variant="Variant.Outlined" Size="Size.Small">@lang</MudChip>
+                        }
+                    </MudChipSet>
+                </MudStack>
+            </MudPaper>
+
+            <!-- Tips Card -->
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.subtitle2" Class="font-weight-bold">💡 Tips</MudText>
+                    <MudDivider Class="my-2" />
+                    
+                    <MudList T="MudListItem<MudText>" Dense="true">
+                        <MudListItem T="MudText" Icon="@Icons.Material.Filled.Lightbulb">
+                            <MudText Typo="Typo.caption">Use natural language searches like "authentication" or "error handling"</MudText>
+                        </MudListItem>
+                        <MudListItem T="MudText" Icon="@Icons.Material.Filled.Lightbulb">
+                            <MudText Typo="Typo.caption">Index your entire codebase for comprehensive AI assistance</MudText>
+                        </MudListItem>
+                        <MudListItem T="MudText" Icon="@Icons.Material.Filled.Lightbulb">
+                            <MudText Typo="Typo.caption">Re-index after making significant code changes</MudText>
+                        </MudListItem>
+                        <MudListItem T="MudText" Icon="@Icons.Material.Filled.Lightbulb">
+                            <MudText Typo="Typo.caption">Use session-specific indexing to organize code by project</MudText>
+                        </MudListItem>
+                    </MudList>
+                </MudStack>
+            </MudPaper>
+        </MudStack>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private string RepositoryPath { get; set; } = "/app/code";
+    private string SelectedSessionId { get; set; } = string.Empty;
+    private string SearchQuery { get; set; } = string.Empty;
+    
+    private bool IsIndexing { get; set; }
+    private bool IsSearching { get; set; }
+    private bool IndexingComplete { get; set; }
+    private bool SearchAttempted { get; set; }
+    
+    private string IndexingMessage { get; set; } = string.Empty;
+    private Severity IndexingMessageSeverity { get; set; } = Severity.Info;
+
+    private List<ChatSession> AvailableSessions { get; } = new();
+    private List<CodeSearchResult> SearchResults { get; } = new();
+
+    private (int FilesIndexed, int ChunksCreated, DateTime LastIndexedTime) IndexingStats = 
+        (0, 0, DateTime.MinValue);
+
+    private readonly List<string> SupportedLanguages = new()
+    {
+        "C#", "Python", "JavaScript", "TypeScript", "Java", "Go", "Rust",
+        "C++", "C", "HTML", "CSS", "SQL", "YAML", "Markdown", "Bash"
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadAvailableSessions();
+        }
+    }
+
+    private async Task LoadAvailableSessions()
+    {
+        try
+        {
+            var client = HttpClientFactory.CreateClient("Api");
+            var response = await client.GetFromJsonAsync<SessionListResponse>("/api/v1/sessions");
+            if (response?.Sessions is not null)
+            {
+                AvailableSessions.Clear();
+                AvailableSessions.AddRange(response.Sessions);
+            }
+        }
+        catch { }
+    }
+
+    private async Task IndexRepository()
+    {
+        if (string.IsNullOrWhiteSpace(RepositoryPath))
+        {
+            IndexingMessage = "Please enter a repository path.";
+            IndexingMessageSeverity = Severity.Warning;
+            return;
+        }
+
+        IsIndexing = true;
+        IndexingMessage = "Starting indexing...";
+        IndexingMessageSeverity = Severity.Info;
+        SearchAttempted = false;
+        StateHasChanged();
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("Api");
+            var request = new { repositoryPath = RepositoryPath, sessionId = SelectedSessionId };
+            
+            var response = await client.PostAsJsonAsync("/api/v1/code/index", request);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var data = await response.Content.ReadFromJsonAsync<CodeIndexResponse>();
+                if (data is not null)
+                {
+                    IndexingStats = (data.FilesIndexed, data.ChunksCreated, DateTime.UtcNow);
+                    IndexingMessage = $"✅ {data.Message}";
+                    IndexingMessageSeverity = Severity.Success;
+                    IndexingComplete = true;
+                }
+            }
+            else
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                IndexingMessage = $"❌ Indexing failed: {response.StatusCode}";
+                IndexingMessageSeverity = Severity.Error;
+            }
+        }
+        catch (Exception ex)
+        {
+            IndexingMessage = $"❌ Error: {ex.Message}";
+            IndexingMessageSeverity = Severity.Error;
+        }
+        finally
+        {
+            IsIndexing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SearchCode()
+    {
+        if (string.IsNullOrWhiteSpace(SearchQuery))
+        {
+            return;
+        }
+
+        IsSearching = true;
+        SearchAttempted = true;
+        SearchResults.Clear();
+        StateHasChanged();
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("Api");
+            var request = new { query = SearchQuery, limit = 5 };
+            
+            var response = await client.PostAsJsonAsync("/api/v1/code/search", request);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var data = await response.Content.ReadFromJsonAsync<CodeSearchResponse>();
+                if (data?.Results is not null)
+                {
+                    foreach (var result in data.Results)
+                    {
+                        SearchResults.Add(result);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Handle error silently, SearchAttempted flag will show "no results"
+        }
+        finally
+        {
+            IsSearching = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CopyToClipboard(string text)
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text);
+        }
+        catch { }
+    }
+
+    private sealed record SessionListResponse(List<ChatSession> Sessions, int Total);
+    private sealed record CodeIndexResponse(int FilesIndexed, int ChunksCreated, string Message);
+    private sealed record CodeSearchResponse(string Query, List<CodeSearchResult> Results, int Count);
+
+    private class CodeSearchResult
+    {
+        public string Content { get; set; } = string.Empty;
+        public string FilePath { get; set; } = string.Empty;
+        public string FileName { get; set; } = string.Empty;
+        public int StartLine { get; set; }
+        public int EndLine { get; set; }
+        public string Language { get; set; } = string.Empty;
+    }
+}

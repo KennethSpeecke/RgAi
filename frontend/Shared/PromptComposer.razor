@@ -1,0 +1,57 @@
+@using MudBlazor
+@using frontend.Models
+
+<MudPaper Class="h-100 pa-4 d-flex flex-column" Elevation="1">
+    <MudStack Spacing="1">
+        <MudText Typo="Typo.h6">Compose prompt</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Tell the AI what you want and choose the right mode.</MudText>
+    </MudStack>
+
+    <MudStack Spacing="2" Class="mt-3" Style="flex:1;">
+        <MudSelect T="string" Value="SelectedMode" ValueChanged="@((string value) => OnSelectedModeChanged(value))" Label="Mode" Variant="Variant.Outlined" FullWidth="true">
+            <MudSelectItem Value="@( "chat" )">Chat</MudSelectItem>
+            <MudSelectItem Value="@( "code" )">Code</MudSelectItem>
+            <MudSelectItem Value="@( "debug" )">Debug</MudSelectItem>
+            <MudSelectItem Value="@( "explain" )">Explain</MudSelectItem>
+        </MudSelect>
+
+        <MudTextField Value="Prompt" ValueChanged="@((string value) => OnPromptChanged(value))" Label="Your prompt" Placeholder="Ask the AI a question..." Lines="6" FullWidth="true" Variant="Variant.Outlined" Disabled="IsSending || IsWarmingUp" />
+    </MudStack>
+
+    <div class="mt-auto">
+        @if (!string.IsNullOrEmpty(ErrorMessage) && !ErrorMessage.Contains("warming up"))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@ErrorMessage</MudAlert>
+        }
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@(IsSending || IsWarmingUp || string.IsNullOrWhiteSpace(Prompt) || string.IsNullOrWhiteSpace(SessionId))" OnClick="SendPrompt">
+            @(IsSending ? "Sending..." : IsWarmingUp ? "Warming up..." : "Send prompt")
+        </MudButton>
+    </div>
+</MudPaper>
+
+@code {
+    [Parameter] public string Prompt { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> PromptChanged { get; set; }
+    [Parameter] public string SelectedMode { get; set; } = "chat";
+    [Parameter] public EventCallback<string> SelectedModeChanged { get; set; }
+    [Parameter] public string ErrorMessage { get; set; } = string.Empty;
+    [Parameter] public bool IsSending { get; set; }
+    [Parameter] public bool IsWarmingUp { get; set; }
+    [Parameter] public string SessionId { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnSend { get; set; }
+
+    private async Task OnPromptChanged(string value)
+    {
+        Prompt = value;
+        await PromptChanged.InvokeAsync(value);
+    }
+
+    private async Task OnSelectedModeChanged(string value)
+    {
+        SelectedMode = value;
+        await SelectedModeChanged.InvokeAsync(value);
+    }
+
+    private Task SendPrompt() => OnSend.InvokeAsync();
+}

@@ -1,0 +1,64 @@
+@using frontend.Models
+
+<MudPaper Class="h-100 d-flex flex-column pa-4" Elevation="1">
+    <MudStack Spacing="1">
+        <MudText Typo="Typo.h6">Sessions</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Organize conversations by tenant, project, or task.</MudText>
+    </MudStack>
+
+    <MudDivider Class="my-3" />
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="CreateNewSession">New session</MudButton>
+
+    <div class="session-list mt-3">
+        @if (IsLoading)
+        {
+            <div class="d-flex justify-center pa-4">
+                <MudProgressCircular Indeterminate="true" Size="Size.Medium" Color="Color.Info" />
+            </div>
+        }
+        else if (Sessions is { Count: 0 })
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary">No sessions yet. Start one to keep your work organized.</MudText>
+        }
+        else
+        {
+            <MudList T="MudListItem<MudStack>" Dense="true">
+                @foreach (var session in Sessions)
+                {
+                    <MudListItem T="MudStack" Tag="SessionId" Ripple="false" OnClick="() => SelectSession(session.SessionId)">
+                        <MudStack Spacing="1">
+                            <MudText Typo="Typo.subtitle2">@session.Name</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@session.MessageCount message(s)</MudText>
+                        </MudStack>
+                    </MudListItem>
+                }
+            </MudList>
+        }
+    </div>
+
+    <MudDivider Class="my-3" />
+
+    <MudText Typo="Typo.subtitle2">Selected session</MudText>
+    <MudTextField @bind-Value="RenameSessionName" Label="Rename session" FullWidth="true" Variant="Variant.Outlined" Class="mt-2" />
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="RenameCurrentSession" Disabled="@(string.IsNullOrWhiteSpace(SessionId) || string.IsNullOrWhiteSpace(RenameSessionName))" Class="mt-3">Save</MudButton>
+    <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="DeleteCurrentSession" Disabled="@(string.IsNullOrWhiteSpace(SessionId))" Class="mt-2">Delete session</MudButton>
+</MudPaper>
+
+@code {
+    [Parameter] public List<ChatSession> Sessions { get; set; } = new();
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public string SessionId { get; set; } = string.Empty;
+    [Parameter] public string RenameSessionName { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> RenameSessionNameChanged { get; set; }
+    [Parameter] public EventCallback CreateNewSession { get; set; }
+    [Parameter] public EventCallback<string> OnSessionSelected { get; set; }
+    [Parameter] public EventCallback RenameCurrentSession { get; set; }
+    [Parameter] public EventCallback DeleteCurrentSession { get; set; }
+
+    private bool IsSelected(string sessionId)
+        => string.Equals(SessionId, sessionId, StringComparison.OrdinalIgnoreCase);
+
+    private Task SelectSession(string sessionId)
+        => OnSessionSelected.InvokeAsync(sessionId);
+}
