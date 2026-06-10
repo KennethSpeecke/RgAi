@@ -71,7 +71,7 @@ public sealed class SystemController : ControllerBase
                 connected = llmConnected,
                 available_models = models,
                 default_model = _settings.DefaultLlmModel,
-                active_model = _selectionService.CurrentModel
+                active_model = _selectionService.GenerateModel
             },
             qdrant_status = new
             {

@@ -44,7 +44,7 @@ public sealed class ModelsController : ControllerBase
     [HttpGet("active")]
     public IActionResult GetActiveModel()
     {
-        return Ok(new { active_model = _selectionService.CurrentModel });
+        return Ok(new { active_model = _selectionService.GenerateModel });
     }
 
     [HttpPost("load")]
@@ -61,8 +61,10 @@ public sealed class ModelsController : ControllerBase
             return NotFound(new { detail = $"Model '{request.Name}' is not available." });
         }
 
-        _selectionService.SetCurrentModel(request.Name);
-        return Ok(new { status = "success", active_model = _selectionService.CurrentModel });
+        _selectionService.SetGenerateModel(request.Name);
+        _selectionService.SetEmbeddingModel("qwen-embedding"); //Todo - make this configurable
+        
+        return Ok(new { status = "success", active_model = _selectionService.GenerateModel });
     }
 
     [HttpDelete("{modelName}")]

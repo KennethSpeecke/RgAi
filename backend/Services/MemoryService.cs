@@ -15,6 +15,7 @@ public sealed class MemoryService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ModelSelectionService _selectionService;
     private bool? _embeddingSupported;
+    private const int EmbeddingTimeoutMs = 10000; // 10 second timeout for embedding requests
 
     public MemoryService(BackendSettings settings, JsonSerializerOptions jsonOptions, IHttpClientFactory httpClientFactory, ModelSelectionService selectionService)
     {
@@ -93,51 +94,67 @@ public sealed class MemoryService
 
     public async Task<bool> UpsertMemoryAsync(string prompt, string responseText, string mode, string? sessionId)
     {
-        var vector = await GetEmbeddingAsync(prompt);
-        if (vector is null)
-        {
-            return false;
-        }
-
-        if (!await EnsureQdrantCollectionAsync(vector.Count))
-        {
-            return false;
-        }
-
-        var idBytes = SHA256.HashData(Encoding.UTF8.GetBytes($"{prompt}\n{responseText}\n{DateTime.UtcNow:o}"));
-        var pointId = Convert.ToHexString(idBytes).ToLowerInvariant();
-
-        var payload = new JsonObject
-        {
-            ["points"] = new JsonArray
-            {
-                new JsonObject
-                {
-                    ["id"] = pointId,
-                    ["vector"] = JsonSerializer.SerializeToNode(vector, _jsonOptions),
-                    ["payload"] = new JsonObject
-                    {
-                        ["prompt"] = prompt,
-                        ["response"] = responseText,
-                        ["mode"] = mode,
-                        ["timestamp"] = DateTime.UtcNow.ToString("o"),
-                        ["session_id"] = string.IsNullOrWhiteSpace(sessionId)
-                            ? null
-                            : JsonValue.Create(sessionId)
-                    }
-                }
-            }
-        };
-
         try
         {
+            var vector = await GetEmbeddingAsync(prompt);
+            if (vector is null)
+            {
+                Console.WriteLine($"WARNING: Embedding not supported - memory will not be stored in Qdrant for this session.");
+                return false;
+            }
+
+            if (!await EnsureQdrantCollectionAsync(vector.Count))
+            {
+                Console.WriteLine($"ERROR: Failed to create Qdrant collection for embedding size {vector.Count}.");
+                return false;
+            }
+
+            var idBytes = SHA256.HashData(Encoding.UTF8.GetBytes($"{prompt}\n{responseText}\n{DateTime.UtcNow:o}"));
+            var pointId = Convert.ToHexString(idBytes).ToLowerInvariant();
+
+            var payload = new JsonObject
+            {
+                ["points"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = pointId,
+                        ["vector"] = JsonSerializer.SerializeToNode(vector, _jsonOptions),
+                        ["payload"] = new JsonObject
+                        {
+                            ["prompt"] = prompt,
+                            ["response"] = responseText,
+                            ["mode"] = mode,
+                            ["timestamp"] = DateTime.UtcNow.ToString("o"),
+                            ["session_id"] = string.IsNullOrWhiteSpace(sessionId)
+                                ? null
+                                : JsonValue.Create(sessionId)
+                        }
+                    }
+                }
+            };
+
             using var client = _httpClientFactory.CreateClient();
             using var request = CreateQdrantRequest(HttpMethod.Put, $"{_settings.QdrantUrl}/collections/{_settings.QdrantCollection}/points", new StringContent(payload.ToJsonString(_jsonOptions), Encoding.UTF8, MediaTypeNames.Application.Json));
             using var response = await client.SendAsync(request);
-            return response.IsSuccessStatusCode;
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"WARNING: Qdrant upsert failed: {response.StatusCode}");
+                return false;
+            }
+
+            Console.WriteLine($"info: Memory saved in Qdrant for session {sessionId}");
+            return true;
         }
-        catch
+        catch (OperationCanceledException)
         {
+            Console.WriteLine($"WARNING: Embedding request timed out - model may not support embeddings or is unresponsive.");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"WARNING: Exception during memory upsert: {ex.Message}");
             return false;
         }
     }
@@ -149,34 +166,54 @@ public sealed class MemoryService
             return null;
         }
 
-        using var client = _httpClientFactory.CreateClient();
-        var payload = JsonSerializer.Serialize(new { model = _selectionService.CurrentModel, input = text }, _jsonOptions);
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_settings.LlmUrl}/api/embed")
+        try
         {
-            Content = new StringContent(payload, Encoding.UTF8, MediaTypeNames.Application.Json)
-        };
+            using var cts = new CancellationTokenSource(EmbeddingTimeoutMs);
+            using var client = _httpClientFactory.CreateClient();
+            
+            var payload = JsonSerializer.Serialize(new { model = _selectionService.EmbeddingModel, input = text }, _jsonOptions);
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{_settings.LlmUrl}/api/embed")
+            {
+                Content = new StringContent(payload, Encoding.UTF8, MediaTypeNames.Application.Json)
+            };
 
-        using var response = await client.SendAsync(request);
-        var body = await response.Content.ReadAsStringAsync();
-        if (response.StatusCode == System.Net.HttpStatusCode.NotImplemented)
+            using var response = await client.SendAsync(request, cts.Token);
+            var body = await response.Content.ReadAsStringAsync(cts.Token);
+            
+            if (response.StatusCode == System.Net.HttpStatusCode.NotImplemented)
+            {
+                Console.WriteLine("WARNING: Model does not support embeddings");
+                _embeddingSupported = false;
+                return null;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"WARNING: LLM embedding error: {response.StatusCode}");
+                return null;
+            }
+
+            var node = JsonNode.Parse(body);
+            var vector = ParseEmbedding(node);
+            if (vector is not null)
+            {
+                _embeddingSupported = true;
+                Console.WriteLine($"info: Embedding generated successfully");
+            }
+
+            return vector;
+        }
+        catch (OperationCanceledException)
         {
+            Console.WriteLine("WARNING: Embedding request timed out after 10 seconds");
             _embeddingSupported = false;
             return null;
         }
-
-        if (!response.IsSuccessStatusCode)
+        catch (Exception ex)
         {
+            Console.WriteLine($"WARNING: Exception getting embedding: {ex.Message}");
             return null;
         }
-
-        var node = JsonNode.Parse(body);
-        var vector = ParseEmbedding(node);
-        if (vector is not null)
-        {
-            _embeddingSupported = true;
-        }
-
-        return vector;
     }
 
     private async Task<bool> EnsureQdrantCollectionAsync(int vectorSize)

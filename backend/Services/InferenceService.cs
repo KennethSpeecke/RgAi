@@ -9,19 +9,22 @@ public sealed class InferenceService
     private readonly SessionStorageService _sessionStorage;
     private readonly BackendSettings _settings;
     private readonly ModelSelectionService _selectionService;
+    private readonly ILogger<InferenceService> _logger;
 
     public InferenceService(
         LlmService llmService,
         MemoryService memoryService,
         SessionStorageService sessionStorage,
         BackendSettings settings,
-        ModelSelectionService selectionService)
+        ModelSelectionService selectionService,
+        ILogger<InferenceService> logger)
     {
         _llmService = llmService;
         _memoryService = memoryService;
         _sessionStorage = sessionStorage;
         _settings = settings;
         _selectionService = selectionService;
+        _logger = logger;
     }
 
     public async Task<InferenceResult> GenerateAsync(InferenceRequest request)
@@ -32,18 +35,34 @@ public sealed class InferenceService
         }
 
         var retrievedContext = string.Empty;
+        
+        // Try Qdrant first (vector search with embeddings)
         if (!string.IsNullOrWhiteSpace(request.SessionId) && await _memoryService.CheckQdrantConnectionAsync())
         {
-            var memoryResults = await _memoryService.SearchAsync(request.Prompt, request.SessionId!, _settings.QdrantDefaultLimit);
-            if (memoryResults.Any())
+            try
             {
-                retrievedContext = BuildRetrievalContext(memoryResults);
+                var memoryResults = await _memoryService.SearchAsync(request.Prompt, request.SessionId!, _settings.QdrantDefaultLimit);
+                if (memoryResults.Any())
+                {
+                    retrievedContext = BuildRetrievalContext(memoryResults);
+                    _logger.LogInformation("Retrieved {Count} memories from Qdrant for session {SessionId}", memoryResults.Count, request.SessionId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Qdrant search failed, falling back to session storage");
+                // Fall through to session storage fallback below
             }
         }
 
+        // Fallback to session storage if Qdrant retrieval failed or no Qdrant connection
         if (string.IsNullOrWhiteSpace(retrievedContext) && !string.IsNullOrWhiteSpace(request.SessionId))
         {
             retrievedContext = _sessionStorage.BuildSessionContext(request.SessionId!);
+            if (!string.IsNullOrWhiteSpace(retrievedContext))
+            {
+                _logger.LogInformation("Retrieved context from session storage for session {SessionId}", request.SessionId);
+            }
         }
 
         var prompt = ComposePrompt(request.Prompt, request.Mode, retrievedContext);
@@ -53,10 +72,27 @@ public sealed class InferenceService
         {
             _sessionStorage.AppendHistory(request.SessionId, "user", request.Prompt);
             _sessionStorage.AppendHistory(request.SessionId, "assistant", response);
-            _ = _memoryService.UpsertMemoryAsync(request.Prompt, response, request.Mode, request.SessionId);
+            
+            // Try to store in Qdrant, but don't fail inference if it doesn't work
+            try
+            {
+                var stored = await _memoryService.UpsertMemoryAsync(request.Prompt, response, request.Mode, request.SessionId);
+                if (stored)
+                {
+                    _logger.LogInformation("Memory stored in Qdrant for session {SessionId}", request.SessionId);
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to store memory in Qdrant for session {SessionId}, but session storage is updated", request.SessionId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Exception while storing memory in Qdrant for session {SessionId}, continuing with session storage", request.SessionId);
+            }
         }
 
-        return new InferenceResult(response, request.Mode, request.Prompt, _selectionService.CurrentModel, string.IsNullOrWhiteSpace(retrievedContext) ? null : retrievedContext);
+        return new InferenceResult(response, request.Mode, request.Prompt, _selectionService.GenerateModel, string.IsNullOrWhiteSpace(retrievedContext) ? null : retrievedContext);
     }
 
     private static string ComposePrompt(string prompt, string mode, string retrievedContext)

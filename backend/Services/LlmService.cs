@@ -72,7 +72,7 @@ public sealed class LlmService
             using var client = CreateLlmClient();
             var payload = JsonSerializer.Serialize(new
             {
-                model = _selectionService.CurrentModel,
+                model = _selectionService.GenerateModel,
                 prompt = "Warm up",
                 stream = false,
                 temperature = 0.2m,
@@ -86,10 +86,16 @@ public sealed class LlmService
             };
 
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            var body = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"ERROR: Failed to warm up LLM: {body}");
+            }
             return response.IsSuccessStatusCode;
         }
         catch
         {
+            Console.WriteLine("Failed to warm up LLM");
             return false;
         }
     }
@@ -99,7 +105,7 @@ public sealed class LlmService
         using var client = CreateLlmClient();
         var payload = JsonSerializer.Serialize(new
         {
-            model = _selectionService.CurrentModel,
+            model = _selectionService.GenerateModel,
             prompt = prompt,
             stream = false,
             temperature,
@@ -194,7 +200,7 @@ public sealed class LlmService
         try
         {
             using var client = CreateLlmClient();
-            var payload = JsonSerializer.Serialize(new { model = _selectionService.CurrentModel, input = text }, _jsonOptions);
+            var payload = JsonSerializer.Serialize(new { model = _selectionService.GenerateModel, input = text }, _jsonOptions);
             using var request = new HttpRequestMessage(HttpMethod.Post, $"{_settings.LlmUrl}/api/embed")
             {
                 Content = new StringContent(payload, Encoding.UTF8, MediaTypeNames.Application.Json)

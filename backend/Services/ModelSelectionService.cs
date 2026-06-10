@@ -3,14 +3,15 @@ namespace RgAi.Backend.Services;
 public sealed class ModelSelectionService
 {
     private readonly object _lock = new();
-    public string CurrentModel { get; private set; }
+    public string GenerateModel { get; private set; }
+    public string EmbeddingModel { get; private set; }
 
     public ModelSelectionService(string initialModel)
     {
-        CurrentModel = initialModel;
+        GenerateModel = initialModel;
     }
 
-    public void SetCurrentModel(string modelName)
+    public void SetGenerateModel(string modelName)
     {
         if (string.IsNullOrWhiteSpace(modelName))
         {
@@ -19,7 +20,20 @@ public sealed class ModelSelectionService
 
         lock (_lock)
         {
-            CurrentModel = modelName;
+            GenerateModel = modelName;
+        }
+    }
+    
+    public void SetEmbeddingModel(string modelName)
+    {
+        if (string.IsNullOrWhiteSpace(modelName))
+        {
+            throw new ArgumentException("Model name cannot be empty.", nameof(modelName));
+        }
+        
+        lock (_lock)
+        {
+            EmbeddingModel = modelName;
         }
     }
 }
